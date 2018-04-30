@@ -1,20 +1,33 @@
 import os, sys
-import process_data
 import torch
 from torch.autograd import Variable
-form torchvision import transforms
-from torch.utils.data import Dataloader
+from torchvision import transforms
+
+import math
+# from torch.utils.data import Dataloader
 import numpy as np
 import torch.optim as optim
 
+from accessories import *
+
+import process_data
+from process_data import ALOVDataset
+import model
+
 use_gpu = torch.cuda.is_available()
 
+#globals
+num_batches = 64
+learning_rate = 0.00001 
+save_directory = '../saved_models/'
+save_model_step = 128
 
 class ToTensor(object):
 	"""Convert ndarrays in sample to Tensors."""
 
 	def __call__(self, sample):
 		prev_img, curr_img = sample['previmg'], sample['currimg']
+		
 		# swap color axis because
 		# numpy image: H x W x C
 		# torch image: C X H X W
@@ -59,13 +72,10 @@ class Normalize(object):
 
 transform = transforms.Compose([Normalize(), ToTensor()])
 num_synthetic_examples = 10
-# take input of save_directory from the user
-save_directory = ""
-
 
 
 def make_training_sample(idx, dataset):
-	orig_sample = dataset.get_orig_sample()
+	orig_sample = dataset.get_orig_sample(idx)
 	true_sample = dataset.get_sample(idx)
 	true_tensor = transform(true_sample)
 
@@ -94,7 +104,7 @@ def make_training_sample(idx, dataset):
 		curr_obj = scale(curr_obj)
 		curr_img = curr_obj['image']
 		curr_bb = curr_obj['bb']
-		curr_bb = np.array(currbb)
+		curr_bb = np.array(curr_bb)
 		sample = {'previmg': prev_img,
 				'currimg': curr_img,
 				'currbb' : curr_bb
@@ -108,16 +118,18 @@ def make_training_sample(idx, dataset):
 
 
 def train_model(net, datasets, optim, loss_function):
-	num_batches = 64
+
 	curr_loss = 0
 
 	for batch in range(num_batches):
 		net.train()
 
+		# currently training on just ALOV dataset
 		for dataset in datasets:
-			size = dataset.len
+			size_dataset = dataset.len
+			rand_idx = np.random.randint(size_dataset, size=1)[0]
+			print('size_dataset',size_dataset, rand_idx)
 
-			rand_idx = np.random.randint(size, size=1)[0]
 			x1, x2, y = make_training_sample(rand_idx, dataset)
 
 			if use_gpu:
@@ -134,17 +146,26 @@ def train_model(net, datasets, optim, loss_function):
 			optim.step()
 
 			curr_loss = loss.data[0]
-			print('[training] step = %d/%d, dataset = %d, loss = %f' % (batch, args.num_batches, i, curr_loss))
+			print('[training] step = %d/%d, loss = %f, y=%d' % (batch, num_batches, curr_loss, len(y)))
 			sys.stdout.flush()
 
+
+		# val_loss = evaluate(model, dataloader, criterion, epoch)
+		# print('Validation Loss: {:.4f}'.format(val_loss))
+
+		if batch > 0 and batch%save_model_step==0:
+			 path = save_directory + '_batch_' + str(batch) + '_loss_' + str(round(curr_loss, 3)) + '.pth'
+			 torch.save(net.state_dict(), path)
 
 	return net
 
 def evaluate(model, dataloader, criterion, epoch):
+
 	model.eval()
 	dataset = dataloader.dataset
-	running_loss = 0
-	# test on a sample sequence from training set itself
+	toral_loss = 0
+
+	
 	for i in xrange(64):
 		sample = dataset[i]
 		sample['currimg'] = sample['currimg'][None,:,:,:]
@@ -163,17 +184,19 @@ def evaluate(model, dataloader, criterion, epoch):
 
 		output = model(x1, x2)
 		loss = criterion(output, y)
-		running_loss += loss.data[0]
+		total_loss += loss.data[0]
 		print('[validation] epoch = %d, i = %d, loss = %f' % (epoch, i, loss.data[0]))
 
 	seq_loss = running_loss/64
 	return seq_loss
 
 
-
 if __name__ == '__main__':
-	alov = ALOVDataset('imagedata++/', 'alov300++_rectangleAnnotation_full/')
 
+	alov = ALOVDataset('../alov/imagedata++/', '../alov/alov300++_rectangleAnnotation_full/')
+
+	# intend to use Imganenet video dataset too
+	# https://www.kaggle.com/c/imagenet-object-detection-from-video-challenge/data
 
 	datasets = [alov]
 	net = model.Re3Net()
@@ -183,9 +206,11 @@ if __name__ == '__main__':
 		net = net.cuda()
 		loss_function = loss_function.cuda()
 
-	optim = optim.Adam(net.parameters(), lr=0.00001)
+	optim = optim.Adam(net.parameters(), lr=0.00001, weight_decay=0.0005)
 
-	os.mkdirs(save_directory)
+	if os.path.exists(save_directory):
+		print('Directory %s already exists', save_directory)
+	else:
+		os.makedirs(save_directory)
 
 	net = train_model(net, datasets, optim, loss_function)
-

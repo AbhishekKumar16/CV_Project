@@ -191,13 +191,10 @@ class FullBlock(nn.Module):
 		y_out_pool = self.pool5(y_out5)
 		y_out_pool = self.pool5_flat(y_out_pool)
 		y_out = torch.cat((y_out_skip1,y_out_skip2, y_out_skip5,y_out_pool), dim=1)
-		# print(y_out.data.size(), y_out_pool.data.size(), y_out_skip1.data.size(), y_out_skip2.data.size(), y_out_skip5.data.size())
 
 		final_out = torch.cat((x_out, y_out), dim=1)
-		# print(final_out.data.size())
 
 		in_lstm = self.fc6(final_out)
-		# print(in_lstm.data.size())
 		return in_lstm
 
 
@@ -226,7 +223,7 @@ class Re3Net(nn.Module):
 		# print(lstm2_out.data.size())
 
 		out = self.fc_final(lstm2_out)
-		# print (out)
+		print (out.data.size())
 		return out
 
 

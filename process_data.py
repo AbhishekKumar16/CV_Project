@@ -7,12 +7,10 @@ import matplotlib.patches as patches
 from skimage import io, transform, img_as_ubyte
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-# import xml.etree.ElementTree as ET
 from PIL import Image
 
 class ALOVDataset(Dataset):
 	"""ALOV Tracking Dataset
-	
 	Arguments:
 		data_dir : Path to the data directory
 		bounding_box_dir : Path to the directory where ground truths are stored
@@ -217,22 +215,8 @@ class CropCurr(object):
 # Imagenet video data
 # https://www.kaggle.com/c/imagenet-object-detection-from-video-challenge/data
 
-alov = ALOVDataset('imagedata++/', 'alov300++_rectangleAnnotation_full/')
-# print (alov.get_orig_sample(10))
-i = 400
-alov.show(i,0)
-alov.show(i,1)
-alov.show_sample(i)
-
-
-
-# def get_synthetic_data(idx, dataset);
-# 	original_sample = dataset.get_orig_sample(idx)
-# 	true_sample = dataset.get_sample(idx)
-# 	true_tensor = transform(true_sample)
-
-# 	original_image, original_bb = original_sample['image'], original_sample['bb']
-# 	image = image_as_ubyte(image)
-# 	if (len(image.shape) == 2):
-# 		image = np.repeat(image[...,None],3,axis=2)
-# 	im = Image.fromarray(image)
+# alov = ALOVDataset('../alov/imagedata++/', '../alov/alov300++_rectangleAnnotation_full/')
+# i = 400
+# alov.show(i,0)
+# alov.show(i,1)
+# alov.show_sample(i)
