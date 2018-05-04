@@ -10,24 +10,23 @@ import torch.optim as optim
 import process_data
 from process_data import ALOVDataset
 import model
+from torch.utils.data import DataLoader
 
 use_gpu = torch.cuda.is_available()
 
+import warnings
+warnings.filterwarnings("ignore")
+
 #globals
-num_batches = 64
 learning_rate = 0.00001 
 save_directory = '../saved_models/'
 save_model_step = 5
 
+# Convert numpy arrays to torch tensors
 class ToTensor(object):
-	"""Convert ndarrays in sample to Tensors."""
-
 	def __call__(self, sample):
 		prev_img, curr_img = sample['previmg'], sample['currimg']
-		
-		# swap color axis because
-		# numpy image: H x W x C
-		# torch image: C X H X W
+		# swap color axis because numpy image: H x W x C ; torch image: C X H X W
 		prev_img = prev_img.transpose((2, 0, 1))
 		curr_img = curr_img.transpose((2, 0, 1))
 		if 'currbb' in sample:
@@ -42,10 +41,10 @@ class ToTensor(object):
 					}
 
 
+# To normalize the data points
 class Normalize(object):
-	"""Returns image with zero mean and scales bounding box by factor of 10."""
-
 	def __call__(self, sample):
+
 		prev_img, curr_img = sample['previmg'], sample['currimg']
 		self.mean = [104, 117, 123]
 		prev_img = prev_img.astype(float)
@@ -58,8 +57,7 @@ class Normalize(object):
 			currbb = currbb*(10./227);
 			return {'previmg': prev_img,
 					'currimg': curr_img,
-					'currbb': currbb
-					}
+					'currbb': currbb}
 		else:
 			return {'previmg': prev_img,
 					'currimg': curr_img
@@ -93,20 +91,20 @@ def train_model(net, dataloader, optim, loss_function, num_epochs):
 			loss.backward(retain_graph=True)
 			optim.step()
 
-			print('[training] epoch = %d, i = %d, loss = %f' % (epoch, i, loss.data[0]) )
+			print('[training] epoch = %d, i = %d/%d, loss = %f' % (epoch, i, dataset_size			,loss.data[0]) )
+			sys.stdout.flush()
 			i = i + 1
 			curr_loss += loss.data[0]
-			sys.stdout.flush()
 
-		epoch_loss = running_loss / dataset_size
+		epoch_loss = curr_loss / dataset_size
 		print('Loss: {:.4f}'.format(epoch_loss))
+		
+		path = save_directory + '_batch_' + str(epoch) + '_loss_' + str(round(epoch_loss, 3)) + '.pth'
+		torch.save(net.state_dict(), path)
 
 		val_loss = evaluate(net, dataloader, loss_function, epoch)
 		print('Validation Loss: {:.4f}'.format(val_loss))
 
-		if batch > 0 and (batch % save_model_step==0):
-			path = save_directory + '_batch_' + str(epoch) + '_loss_' + str(round(epoch_loss, 3)) + '.pth'
-			torch.save(net.state_dict(), path)
 
 	return net
 
@@ -116,7 +114,6 @@ def evaluate(model, dataloader, criterion, epoch):
 	dataset = dataloader.dataset
 	total_loss = 0
 
-	
 	for i in xrange(64):
 		sample = dataset[i]
 		sample['currimg'] = sample['currimg'][None,:,:,:]
@@ -144,7 +141,8 @@ def evaluate(model, dataloader, criterion, epoch):
 
 if __name__ == '__main__':
 
-	alov = ALOVDataset('../alov/imagedata++/', '../alov/alov300++_rectangleAnnotation_full/', transform)
+	# alov = ALOVDataset('../alov/imagedata++/', '../alov/alov300++_rectangleAnnotation_full/', transform)
+	alov = ALOVDataset('../alov/image_testing/', '../alov/image_testing_annotation/', transform)
 
 	# intend to use Imganenet video dataset too
 	# https://www.kaggle.com/c/imagenet-object-detection-from-video-challenge/data

@@ -1,4 +1,4 @@
-import os
+import os, sys
 import torch
 import numpy as np
 import math
@@ -26,29 +26,26 @@ class ALOVDataset(Dataset):
 		self.x = []
 		self.transform = transform
 		envs = os.listdir(bounding_box_dir)
-		# print (envs, len(envs))
 
 		for env in envs:
 			env_videos = os.listdir(data_dir + env)
-			# print(env_videos, len(env_videos), env, "\n")
 
 			for vid in env_videos:
 				vid_src = self.data_dir + env + "/" + vid
-				vid_ann = self.bounding_box_dir + env + "/" + vid + ".ann"
+				vid_annotations = self.bounding_box_dir + env + "/" + vid + ".ann"
 				frames = os.listdir(vid_src)
 				frames.sort()
-				# print(len(frames) , "\n")
+
 				frames = [vid_src + "/" + frame for frame in frames]
-				f = open(vid_ann, "r")
+				f = open(vid_annotations, "r")
 				annotations = f.readlines()
 				f.close()
 				frame_idxs = [int(ann.split(' ')[0])-1 for ann in annotations]
-				# print(frame_idxs,"\n\n")
+
 				frames = np.array(frames)
 				
 				for i in range(len(frame_idxs)-1):
 					idx = frame_idxs[i]
-					# print (i, idx)
 					next_idx = frame_idxs[i+1]
 					self.x.append([frames[idx], frames[next_idx]])
 					self.y.append([annotations[i], annotations[i+1]])
@@ -68,8 +65,7 @@ class ALOVDataset(Dataset):
 			sample = self.transform(sample)
 		return sample
 
-	# return sample without transformation
-	# for visualization purpose
+	# return sample without transformation for visualization purpose
 	def get_sample(self, idx):
 		prev = io.imread(self.x[idx][0])
 		curr = io.imread(self.x[idx][1])
@@ -81,7 +77,6 @@ class ALOVDataset(Dataset):
 		scale = Rescale((227,227))
 		transform_prev = transforms.Compose([CropPrev(128), scale])
 		prev_img = transform_prev({'image':prev, 'bb':prevbb})['image']
-
 		
 		# Cropping the current image with twice the size of  prev bounding box and scale the cropped image to (227,227,3)
 		curr_obj = crop_curr({'image':curr, 'prevbb':prevbb, 'currbb':currbb})
@@ -111,31 +106,31 @@ class ALOVDataset(Dataset):
 		bottom = max(float(ann[2]), float(ann[4]), float(ann[6]), float(ann[8]))
 		return [left, top, right, bottom]
 
-	# helper function to display image at a particular index with ground truth bounding box
-	# arguments: (idx, i)
-	#            idx - index
-	#             i - 0 for previous frame and 1 for current frame
-	def show(self, idx, i):
-		sample = self.get_orig_sample(idx, i)
-		im = sample['image']
-		bb = sample['bb']
-		fig,ax = plt.subplots(1)
-		ax.imshow(im)
-		rect = patches.Rectangle((bb[0], bb[1]),bb[2]-bb[0],bb[3]-bb[1],linewidth=1,edgecolor='r',facecolor='none')
-		ax.add_patch(rect)
-		plt.show()
+	# # helper function to display image at a particular index with ground truth bounding box
+	# # arguments: (idx, i)
+	# #            idx - index
+	# #             i - 0 for previous frame and 1 for current frame
+	# def show(self, idx, i):
+	# 	sample = self.get_orig_sample(idx, i)
+	# 	im = sample['image']
+	# 	bb = sample['bb']
+	# 	fig,ax = plt.subplots(1)
+	# 	ax.imshow(im)
+	# 	rect = patches.Rectangle((bb[0], bb[1]),bb[2]-bb[0],bb[3]-bb[1],linewidth=1,edgecolor='r',facecolor='none')
+	# 	ax.add_patch(rect)
+	# 	plt.show()
 
-	# helper function to display sample, which is passed to neural net
-	# display previous frame and current frame with bounding box
-	def show_sample(self, idx):
-		x = self.get_sample(idx)
-		f, (ax1, ax2) = plt.subplots(1, 2)
-		ax1.imshow(x['previmg'])
-		ax2.imshow(x['currimg'])
-		bb = x['currbb']
-		rect = patches.Rectangle((bb[0], bb[1]),bb[2]-bb[0],bb[3]-bb[1],linewidth=1,edgecolor='r',facecolor='none')
-		ax2.add_patch(rect)
-		plt.show()
+	# # helper function to display sample, which is passed to neural net
+	# # display previous frame and current frame with bounding box
+	# def show_sample(self, idx):
+	# 	x = self.get_sample(idx)
+	# 	f, (ax1, ax2) = plt.subplots(1, 2)
+	# 	ax1.imshow(x['previmg'])
+	# 	ax2.imshow(x['currimg'])
+	# 	bb = x['currbb']
+	# 	rect = patches.Rectangle((bb[0], bb[1]),bb[2]-bb[0],bb[3]-bb[1],linewidth=1,edgecolor='r',facecolor='none')
+	# 	ax2.add_patch(rect)
+	# 	plt.show()
 
 
 class Rescale(object):
@@ -150,7 +145,7 @@ class Rescale(object):
 
 	def __call__(self, sample):
 		image, bb = sample['image'], sample['bb']
-		print(image.shape, bb)
+		# print(image.shape, bb)
 		h, w = image.shape[:2]
 		if isinstance(self.output_size, int):
 		   if h > w:
@@ -182,6 +177,7 @@ class CropPrev(object):
 
 	def __call__(self, sample):
 		image, bb = sample['image'], sample['bb']
+
 		image = img_as_ubyte(image)
 		if (len(image.shape) == 2):
 			image = np.repeat(image[...,None],3,axis=2)
@@ -196,6 +192,10 @@ class CropPrev(object):
 		box = tuple([int(math.floor(x)) for x in box])
 		res = np.array(im.crop(box))
 		bb = [bb[0]-left, bb[1]-top, bb[2]-left, bb[3]-top]
+
+		if(len(res.shape) <= 0):
+			print("Error:  bounding box degenerate")
+			sys.exit()
 		return {'image':res, 'bb':bb}
 
 

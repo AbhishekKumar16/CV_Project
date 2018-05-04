@@ -22,8 +22,9 @@ max_x = 0
 max_x = 0
 
 use_gpu = torch.cuda.is_available()
+
 model_weights = '/path/to/trained/model'
-test_data_dir = '../alov/imagedata++/test/'
+test_data_dir = '../alov/imagedata++/test/05-Shape_video00024/'
 transform = transforms.Compose([Normalize(), ToTensor()])
 
 def line_select_callback(eclick, erelease):
@@ -38,8 +39,11 @@ def line_select_callback(eclick, erelease):
 
 
 def get_bbox(path_image):
+	dpi = 80.0
 	image = Image.open(path_image).convert('RGB')
-	fig = plt.figure(frameon=False)
+	figsize = (image.size[0]/dpi, image.size[1]/dpi)
+
+	fig = plt.figure(frameon=False, figsize=figsize, dpi=dpi)
 	axis = plt.Axes(fig, [0., 0., 1., 1.])
 	axis.set_axis_off()
 	fig.add_axes(axis)
@@ -56,33 +60,16 @@ def get_sample(idx, all_frames, previous_bbox):
 	# Cropping the prev image with twice the size of  prev bounding box and scale the cropped image to (227,227,3)
 	scale = Rescale((227,227))
 	transform_prev = transforms.Compose([CropPrev(128), scale])
+	
+	# print("previous_bbox", previous_bbox)
 	prev_img = transform_prev({'image':prev, 'bb':previous_bbox})['image']
+	# print("size: ", prev.size, curr.size, previous_bbox)
 
 	# Cropping the current image with twice the size of  prev bounding box and scale the cropped image to (227,227,3)
 	curr_img = transform_prev({'image':curr, 'bb':previous_bbox})['image']
 	sample = {'previmg': prev_img, 'currimg': curr_img}
 	# print (sample)
 	return transform(sample)
-
-def inverse_transform(currbb, orig_prevbb):
-	# unscaling
-	patch_width = (orig_prevbb[2]-orig_prevbb[0])*2
-	patch_height = (orig_prevbb[3]-orig_prevbb[1])*2
-	# input image size to network
-	net_w = 227
-	net_h = 227
-	unscaledbb = [currbb[0]*patch_width/net_w,
-				  currbb[1]*patch_height/net_h,
-				  currbb[2]*patch_width/net_w,
-				  currbb[3]*patch_height/net_h]
-	# uncropping
-	bb = orig_prevbb
-	w = bb[2]-bb[0]
-	h = bb[3]-bb[1]
-	left = bb[0]-w/2
-	top = bb[1]-h/2
-	orig_currbb = [left+unscaledbb[0], top+unscaledbb[1], left+unscaledbb[2], top+unscaledbb[3]]
-	return orig_currbb
 
 
 def get_bounding_box_rect(sample, model, previous_bbox):
@@ -99,7 +86,25 @@ def get_bounding_box_rect(sample, model, previous_bbox):
 	bb = bb[:,0]
 
 	bb = list(bb*(227./10))
-	bb = inverse_transform(bb, previous_bbox)
+
+	# unscaling
+	patch_width = (previous_bbox[2]-previous_bbox[0])*2
+	patch_height = (previous_bbox[3]-previous_bbox[1])*2
+	# input image size to network
+	
+	unscaled_bbox = [bb[0]*patch_width/227,
+					bb[1]*patch_height/227,
+					bb[2]*patch_width/227,
+					bb[3]*patch_height/227]
+
+	bb = previous_bbox
+	h = bb[3]-bb[1]
+	w = bb[2]-bb[0]
+	top = bb[1]-h/2
+	left = bb[0]-w/2
+	orig_currbb = [left+unscaled_bbox[0], top+unscaled_bbox[1], left+unscaled_bbox[2], top+unscaled_bbox[3]]
+
+	bb = orig_currbb
 	return bb
 
 
@@ -109,40 +114,68 @@ def test():
 		model = model.cuda()
 	# model.load_state_dict(torch.load(model_weights))
 
-	test_data = os.listdir(test_data_dir)
-	test_data = [test_data_dir + files for files in test_data]
-	num_test_data = len(test_data)-1
-	test_data = np.array(test_data)
-	test_data.sort()
-	for d in range(num_test_data):
-		frames = []
-		frames = os.listdir(test_data[d])
-		frames = [test_data[d] + '/'+frame for frame in frames]
-		num_frames = len(test_data)-1
-		frames = np.array(frames)
-		frames.sort()
+	# test_data = os.listdir(test_data_dir)
+	# test_data = [test_data_dir + files for files in test_data]
+	# num_test_data = len(test_data)-1
+	# test_data = np.array(test_data)
+	# test_data.sort()
+	# for d in range(num_test_data):
+	# 	frames = []
+	# 	frames = os.listdir(test_data[d])
+	# 	frames = [test_data[d] + '/'+frame for frame in frames]
+	# 	num_frames = len(test_data)-1
+	# 	frames = np.array(frames)
+	# 	frames.sort()
 
-		all_frames = []
-		for i in range(num_frames):
-			all_frames.append([frames[i], frames[i+1]])
-		all_frames = np.array(all_frames)
-		initial_bbox = get_bbox(all_frames[0][0])
-		print(initial_bbox)
+	# 	all_frames = []
+	# 	for i in range(num_frames):
+	# 		all_frames.append([frames[i], frames[i+1]])
+	# 	all_frames = np.array(all_frames)
+	# 	initial_bbox = get_bbox(all_frames[0][0])
+	# 	print(initial_bbox)
 
-		previous_bbox = initial_bbox
+	# 	previous_bbox = initial_bbox
 
-		fig,ax = plt.subplots(1)
-		for i in range(num_frames):
-			sample = get_sample(i, all_frames, previous_bbox)
-			curr_bbox = get_bounding_box_rect(sample, model, previous_bbox)
-			img_show = io.imread(all_frames[i][1])
+	# 	fig,ax = plt.subplots(1)
+	# 	for i in range(num_frames):
+	# 		sample = get_sample(i, all_frames, previous_bbox)
+	# 		curr_bbox = get_bounding_box_rect(sample, model, previous_bbox)
+	# 		img_show = io.imread(all_frames[i][1])
 
-			ax.clear()
-			ax.imshow(img_show)
-			rect = patches.Rectangle((curr_bbox[0], curr_bbox[1]),curr_bbox[2]-curr_bbox[0],curr_bbox[3]-curr_bbox[1],linewidth=1,edgecolor='r',facecolor='none')
-			ax.add_patch(rect)
-			previous_bbox = curr_bbox
-		plt.show()
+	# 		ax.clear()
+	# 		ax.imshow(img_show)
+	# 		rect = patches.Rectangle((curr_bbox[0], curr_bbox[1]),curr_bbox[2]-curr_bbox[0],curr_bbox[3]-curr_bbox[1],linewidth=1,edgecolor='r',facecolor='none')
+	# 		ax.add_patch(rect)
+	# 		previous_bbox = curr_bbox
+	# 	plt.show()
+
+	frames = os.listdir(test_data_dir)
+	frames = [test_data_dir + files for files in frames]
+	num_frames = len(frames)-1
+	frames = np.array(frames)	
+	frames.sort()
+
+	all_frames = []
+	for i in range(num_frames):
+		all_frames.append([frames[i], frames[i+1]])
+	all_frames = np.array(all_frames)
+	initial_bbox = get_bbox(all_frames[0][0])
+	
+	previous_bbox = initial_bbox
+	fig,ax = plt.subplots(1)
+	for i in range(num_frames):
+		print(i)
+		sample = get_sample(i, all_frames, previous_bbox)
+		curr_bbox = get_bounding_box_rect(sample, model, previous_bbox)
+		img_show = io.imread(all_frames[i][1])
+
+		ax.clear()
+		ax.imshow(img_show)
+		rect = patches.Rectangle((curr_bbox[0], curr_bbox[1]),curr_bbox[2]-curr_bbox[0],curr_bbox[3]-curr_bbox[1],linewidth=1,edgecolor='r',facecolor='none')
+		ax.add_patch(rect)
+		previous_bbox = curr_bbox
+
+	plt.show()
 
 
 if __name__ == "__main__":
