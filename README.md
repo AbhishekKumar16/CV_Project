@@ -34,3 +34,13 @@ The two crops
 <img src="/images_readme/cv2.png" />
 <figcaption>Image crops fed to the network</figcaption>
 </figure>
+
+
+For training I have specifically used the ALOV300++ dataset. This dataset can be downloaded from <a href="http://alov300pp.joomlafree.it/">this link.</a> Although the actual paper suggests using ImageNet video dataset as well and to further make synthetic datapoints from the ImageNet video dataset, I sticked to using the ALOV300++ dataset due to a constraint on the resources available and the time for training.
+
+In the ALOV dataset downloaded, keep the ground truth values and the actual data into a folder named 'alov' just outside the folder of this repository. Let the name of the directory for the actual video data frames be 'imagedata++' and the corresponding annotations be 'alov300++\_rectangleAnnotation_full'.
+I also took out the last entires from each of the directories of imagedata++ to construct the test set. Place the test set in the imagedata++ directory.
+
+The code can then be directly run using python3 trainModel.py
+
+I could not complete the network's training using the entire dataset(due to it requiring a lot of computational time and resources) and hence the trained model is unavailable. So to test the network, it has to be trained first using the command mentioned above and then used for testing.
