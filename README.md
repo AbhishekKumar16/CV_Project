@@ -23,10 +23,14 @@ Object appearance embedding
 </ul>
 
 
-The two crops:-
+The two crops
+<figure>
 <img src="/images_readme/cv1.png" />
+<figcaption>Visualization of images with bounding box at frames i and i-1</figcaption>
+</figure>
 
-Images fed to the network:-
+
+<figure>
 <img src="/images_readme/cv2.png" />
-
-
+<figcaption>Image crops fed to the network</figcaption>
+</figure>
