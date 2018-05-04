@@ -4,11 +4,8 @@ from torch.autograd import Variable
 from torchvision import transforms
 
 import math
-# from torch.utils.data import Dataloader
 import numpy as np
 import torch.optim as optim
-
-from accessories import *
 
 import process_data
 from process_data import ALOVDataset
@@ -20,7 +17,7 @@ use_gpu = torch.cuda.is_available()
 num_batches = 64
 learning_rate = 0.00001 
 save_directory = '../saved_models/'
-save_model_step = 128
+save_model_step = 5
 
 class ToTensor(object):
 	"""Convert ndarrays in sample to Tensors."""
@@ -69,69 +66,20 @@ class Normalize(object):
 					}
 
 
-
 transform = transforms.Compose([Normalize(), ToTensor()])
-num_synthetic_examples = 10
 
+def train_model(net, dataloader, optim, loss_function, num_epochs):
 
-def make_training_sample(idx, dataset):
-	orig_sample = dataset.get_orig_sample(idx)
-	true_sample = dataset.get_sample(idx)
-	true_tensor = transform(true_sample)
-
-	orig_img = orig_sample['image']
-	orig_bb = orig_sample['bb']
-
-	x1_batch = torch.Tensor(num_synthetic_examples+1, 3, 227, 227)
-	x2_batch = torch.Tensor(num_synthetic_examples+1, 3, 227, 227)
-	y_batch = torch.Tensor(num_synthetic_examples+1, 4)
-
-	x1_batch[0,:,:,:] = true_tensor['previmg']
-	x1_batch[0,:,:,:] = true_tensor['currimg']
-	y_batch[0,:] = true_tensor['currbb']
-
-	for i in range(num_synthetic_examples):
-		sample = {'image':orig_img, 'bb':orig_bb}
-		prev_bb = random_crop(sample)
-		crop_curr = transforms.Compose([CropCurr()])
-		scale = Rescale((227,227))
-
-		transform_prev = transforms.Compose([CropPrev(), scale])
-		prev_img = transform_prev({'image':orig_img, 'bb':orig_bb})['image']
-		# Crop current image with height and width twice the prev bounding box height and width
-		# Scale the cropped image to (227,227,3)
-		curr_obj = crop_curr({'image':orig_img, 'prevbb':prev_bb, 'currbb':orig_bb})
-		curr_obj = scale(curr_obj)
-		curr_img = curr_obj['image']
-		curr_bb = curr_obj['bb']
-		curr_bb = np.array(curr_bb)
-		sample = {'previmg': prev_img,
-				'currimg': curr_img,
-				'currbb' : curr_bb
-				}
-		sample = transform(sample)
-		x1_batch[i+1,:,:,:] = sample['previmg']
-		x2_batch[i+1,:,:,:] = sample['currimg']
-		y_batch[i+1,:] = sample['currbb']
-
-	return x1_batch, x2_batch, y_batch
-
-
-def train_model(net, datasets, optim, loss_function):
-
-	curr_loss = 0
-
-	for batch in range(num_batches):
+	dataset_size = dataloader.dataset.len
+	for epoch in range(num_epochs):
 		net.train()
+		curr_loss = 0.0
 
 		# currently training on just ALOV dataset
-		for dataset in datasets:
-			size_dataset = dataset.len
-			rand_idx = np.random.randint(size_dataset, size=1)[0]
-			print('size_dataset',size_dataset, rand_idx)
+		i = 0
+		for data in dataloader:
 
-			x1, x2, y = make_training_sample(rand_idx, dataset)
-
+			x1, x2, y = data['previmg'], data['currimg'], data['currbb']
 			if use_gpu:
 				x1, x2, y = Variable(x1.cuda()), Variable(x2.cuda()), Variable(y.cuda(), requires_grad=False)
 			else:
@@ -142,20 +90,23 @@ def train_model(net, datasets, optim, loss_function):
 			output = net(x1,x2)
 			loss = loss_function(output, y)
 
-			loss.backward()
+			loss.backward(retain_graph=True)
 			optim.step()
 
-			curr_loss = loss.data[0]
-			print('[training] step = %d/%d, loss = %f, y=%d' % (batch, num_batches, curr_loss, len(y)))
+			print('[training] epoch = %d, i = %d, loss = %f' % (epoch, i, loss.data[0]) )
+			i = i + 1
+			curr_loss += loss.data[0]
 			sys.stdout.flush()
 
+		epoch_loss = running_loss / dataset_size
+		print('Loss: {:.4f}'.format(epoch_loss))
 
-		# val_loss = evaluate(model, dataloader, criterion, epoch)
-		# print('Validation Loss: {:.4f}'.format(val_loss))
+		val_loss = evaluate(net, dataloader, loss_function, epoch)
+		print('Validation Loss: {:.4f}'.format(val_loss))
 
-		if batch > 0 and batch%save_model_step==0:
-			 path = save_directory + '_batch_' + str(batch) + '_loss_' + str(round(curr_loss, 3)) + '.pth'
-			 torch.save(net.state_dict(), path)
+		if batch > 0 and (batch % save_model_step==0):
+			path = save_directory + '_batch_' + str(epoch) + '_loss_' + str(round(epoch_loss, 3)) + '.pth'
+			torch.save(net.state_dict(), path)
 
 	return net
 
@@ -163,7 +114,7 @@ def evaluate(model, dataloader, criterion, epoch):
 
 	model.eval()
 	dataset = dataloader.dataset
-	toral_loss = 0
+	total_loss = 0
 
 	
 	for i in xrange(64):
@@ -193,13 +144,14 @@ def evaluate(model, dataloader, criterion, epoch):
 
 if __name__ == '__main__':
 
-	alov = ALOVDataset('../alov/imagedata++/', '../alov/alov300++_rectangleAnnotation_full/')
+	alov = ALOVDataset('../alov/imagedata++/', '../alov/alov300++_rectangleAnnotation_full/', transform)
 
 	# intend to use Imganenet video dataset too
 	# https://www.kaggle.com/c/imagenet-object-detection-from-video-challenge/data
 
-	datasets = [alov]
+	dataloader = DataLoader(alov, batch_size = 1)
 	net = model.Re3Net()
+	
 	loss_function = torch.nn.L1Loss(size_average=False)
 
 	if use_gpu:
@@ -213,4 +165,5 @@ if __name__ == '__main__':
 	else:
 		os.makedirs(save_directory)
 
-	net = train_model(net, datasets, optim, loss_function)
+	num_epochs = 100
+	net = train_model(net, dataloader, optim, loss_function, num_epochs)

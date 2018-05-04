@@ -9,6 +9,8 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from PIL import Image
 
+curr_video= 0
+
 class ALOVDataset(Dataset):
 	"""ALOV Tracking Dataset
 	Arguments:
@@ -28,14 +30,14 @@ class ALOVDataset(Dataset):
 
 		for env in envs:
 			env_videos = os.listdir(data_dir + env)
-			# print(env_videos, len(env_videos), "\n")
+			# print(env_videos, len(env_videos), env, "\n")
 
 			for vid in env_videos:
 				vid_src = self.data_dir + env + "/" + vid
 				vid_ann = self.bounding_box_dir + env + "/" + vid + ".ann"
 				frames = os.listdir(vid_src)
 				frames.sort()
-				# print(frames , "\n")
+				# print(len(frames) , "\n")
 				frames = [vid_src + "/" + frame for frame in frames]
 				f = open(vid_ann, "r")
 				annotations = f.readlines()
@@ -46,6 +48,7 @@ class ALOVDataset(Dataset):
 				
 				for i in range(len(frame_idxs)-1):
 					idx = frame_idxs[i]
+					# print (i, idx)
 					next_idx = frame_idxs[i+1]
 					self.x.append([frames[idx], frames[next_idx]])
 					self.y.append([annotations[i], annotations[i+1]])
@@ -72,14 +75,15 @@ class ALOVDataset(Dataset):
 		curr = io.imread(self.x[idx][1])
 		prevbb = self.get_bb(self.y[idx][0])
 		currbb = self.get_bb(self.y[idx][1])
-		# Crop previous image with height and width twice the prev bounding box height and width
-		# Scale the cropped image to (227,227,3)
-		crop_curr = transforms.Compose([CropCurr()])
+		
+		# Cropping the prev image with twice the size of  prev bounding box and scale the cropped image to (227,227,3)
+		crop_curr = transforms.Compose([CropCurr(128)])
 		scale = Rescale((227,227))
-		transform_prev = transforms.Compose([CropPrev(), scale])
+		transform_prev = transforms.Compose([CropPrev(128), scale])
 		prev_img = transform_prev({'image':prev, 'bb':prevbb})['image']
-		# Crop current image with height and width twice the prev bounding box height and width
-		# Scale the cropped image to (227,227,3)
+
+		
+		# Cropping the current image with twice the size of  prev bounding box and scale the cropped image to (227,227,3)
 		curr_obj = crop_curr({'image':curr, 'prevbb':prevbb, 'currbb':currbb})
 		curr_obj = scale(curr_obj)
 		curr_img = curr_obj['image']
@@ -146,6 +150,7 @@ class Rescale(object):
 
 	def __call__(self, sample):
 		image, bb = sample['image'], sample['bb']
+		print(image.shape, bb)
 		h, w = image.shape[:2]
 		if isinstance(self.output_size, int):
 		   if h > w:
@@ -167,6 +172,14 @@ class CropPrev(object):
 		output_size (tuple or int): Desired output size. If int, square crop
 			is made.
 	"""
+	def __init__(self, output_size):
+		assert isinstance(output_size, (int, tuple))
+		if isinstance(output_size, int):
+			self.output_size = (output_size, output_size)
+		else:
+			assert len(output_size) == 2
+			self.output_size = output_size
+
 	def __call__(self, sample):
 		image, bb = sample['image'], sample['bb']
 		image = img_as_ubyte(image)
@@ -192,6 +205,15 @@ class CropCurr(object):
 		output_size (tuple or int): Desired output size. If int, square crop
 			is made.
 	"""
+	def __init__(self, output_size):
+		assert isinstance(output_size, (int, tuple))
+		if isinstance(output_size, int):
+			self.output_size = (output_size, output_size)
+		else:
+			assert len(output_size) == 2
+			self.output_size = output_size
+
+
 	def __call__(self, sample):
 		image, prevbb, currbb = sample['image'], sample['prevbb'], sample['currbb']
 		image = img_as_ubyte(image)

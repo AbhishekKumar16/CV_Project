@@ -75,17 +75,11 @@ class BasicBlock1(nn.Module):
 		self.basic_block.add_module("conv", nn.Conv2d(in_planes, out_planes, kernel_size=conv_kernel_size, stride=conv_stride))
 		self.basic_block.add_module("relu", nn.ReLU())
 		self.basic_block.add_module("pool", nn.MaxPool2d(kernel_size=pool_kernel_size, stride=pool_stride))
+		## LRN is currently not present in pytorch. Hence implemented one using resources from pytorch forums
 		self.norm = LRN(local_size=5, alpha=0.0001, beta=0.75)
 
-		## LRN is currently not present in pytorch. Have to ask someone how to do this
-		# self.basic_block.add_module("norm", SpatialCrossMapLRN(size=5, alpha=0.0001, beta=0.75))
-
-		# self.conv = nn.Conv2d(in_planes, out_planes, kernel_size=conv_kernel_size, stride=conv_stride)
-		# self.relu = torch.nn.ReLU()
-		# self.pool = torch.nn.MaxPool2d(kernel_size=pool_kernel_size, stride=pool_stride)
 
 	def forward(self,x):
-		# print("here!")
 		# out1 = self.conv(x)
 		# return out1
 		out = self.basic_block.forward(x)
@@ -208,33 +202,35 @@ class Re3Net(nn.Module):
 		self.lstm2 = nn.LSTMCell(2048 + 1024, 1024)
 		self.fc_final = nn.Linear(1024,4)
 
+		self.h0 = Variable(torch.rand(1,1024))
+		self.c0 = Variable(torch.rand(1,1024))
 
+	def init_hidden():
+		self.h0 = Variable(torch.rand(1,1024))
+		self.c0 = Variable(torch.rand(1,1024))
+		
 	def forward(self,x,y,prev_LSTM_state=False):
 		out = self.full_block(x,y)
-
-		h0 = Variable(torch.rand(1,1024))
-		c0 = Variable(torch.rand(1,1024))
-
-		lstm_out, h0 = self.lstm1(out, (h0,c0))
+		
+		lstm_out, self.h0 = self.lstm1(out, (self.h0,self.c0))
 
 		lstm2_in = torch.cat((out, lstm_out), dim=1)
-		# print(out.data.size(), lstm_out.data.size(), h0.data.size(), lstm2_in.data.size())
-		lstm2_out, h1 = self.lstm2(lstm2_in, (h0,c0))
-		# print(lstm2_out.data.size())
+
+		lstm2_out, h1 = self.lstm2(lstm2_in, (self.h0,self.c0))
+		
 
 		out = self.fc_final(lstm2_out)
-		print (out.data.size())
 		return out
 
 
-net = Re3Net()
-# print(net)
-bs = 1
-shape = (3,227,227)
-input1 = Variable(torch.rand(bs, *shape))
-input2 = Variable(torch.rand(bs, *shape))
+# net = Re3Net()
+# # print(net)
+# bs = 1
+# shape = (3,227,227)
+# input1 = Variable(torch.rand(bs, *shape))
+# input2 = Variable(torch.rand(bs, *shape))
 
-ot = net.forward(input1, input2)
+# ot = net.forward(input1, input2)
 
 # print(net)
 # print(ot.data.size())
