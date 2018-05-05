@@ -23,7 +23,7 @@ max_x = 0
 
 use_gpu = torch.cuda.is_available()
 
-model_weights = '/path/to/trained/model'
+model_weights = '../saved_models/_batch_0_loss_11.059.pth'
 test_data_dir = '../alov/imagedata++/test/05-Shape_video00024/'
 transform = transforms.Compose([Normalize(), ToTensor()])
 
@@ -112,7 +112,7 @@ def test():
 	model = Re3Net()
 	if use_gpu:
 		model = model.cuda()
-	# model.load_state_dict(torch.load(model_weights))
+	model.load_state_dict(torch.load(model_weights))
 
 	# test_data = os.listdir(test_data_dir)
 	# test_data = [test_data_dir + files for files in test_data]
@@ -166,6 +166,7 @@ def test():
 	for i in range(num_frames):
 		print(i)
 		sample = get_sample(i, all_frames, previous_bbox)
+		print(previous_bbox)
 		curr_bbox = get_bounding_box_rect(sample, model, previous_bbox)
 		img_show = io.imread(all_frames[i][1])
 
@@ -174,7 +175,6 @@ def test():
 		rect = patches.Rectangle((curr_bbox[0], curr_bbox[1]),curr_bbox[2]-curr_bbox[0],curr_bbox[3]-curr_bbox[1],linewidth=1,edgecolor='r',facecolor='none')
 		ax.add_patch(rect)
 		previous_bbox = curr_bbox
-
 	plt.show()
 
 

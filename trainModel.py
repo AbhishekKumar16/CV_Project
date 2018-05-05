@@ -141,8 +141,8 @@ def evaluate(model, dataloader, criterion, epoch):
 
 if __name__ == '__main__':
 
-	# alov = ALOVDataset('../alov/imagedata++/', '../alov/alov300++_rectangleAnnotation_full/', transform)
-	alov = ALOVDataset('../alov/image_testing/', '../alov/image_testing_annotation/', transform)
+	alov = ALOVDataset('../alov/imagedata++/', '../alov/alov300++_rectangleAnnotation_full/', transform)
+	# alov = ALOVDataset('../alov/image_testing/', '../alov/image_testing_annotation/', transform)
 
 	# intend to use Imganenet video dataset too
 	# https://www.kaggle.com/c/imagenet-object-detection-from-video-challenge/data

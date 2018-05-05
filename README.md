@@ -42,5 +42,6 @@ In the ALOV dataset downloaded, keep the ground truth values and the actual data
 I also took out the last entires from each of the directories of imagedata++ to construct the test set. Place the test set in the imagedata++ directory.
 
 The code can then be directly run using python3 trainModel.py
+To test the code, in the file testModel.py, change model_weights on line 26 to the file name of the saved model.
 
 I could not complete the network's training using the entire dataset(due to it requiring a lot of computational time and resources) and hence the trained model is unavailable. So to test the network, it has to be trained first using the command mentioned above and then used for testing.

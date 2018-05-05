@@ -176,8 +176,8 @@ class CropPrev(object):
 			self.output_size = output_size
 
 	def __call__(self, sample):
+		global prev_bb 
 		image, bb = sample['image'], sample['bb']
-
 		image = img_as_ubyte(image)
 		if (len(image.shape) == 2):
 			image = np.repeat(image[...,None],3,axis=2)
@@ -194,8 +194,22 @@ class CropPrev(object):
 		bb = [bb[0]-left, bb[1]-top, bb[2]-left, bb[3]-top]
 
 		if(len(res.shape) <= 0):
-			print("Error:  bounding box degenerate")
-			sys.exit()
+			bb = prev_bb
+			w = bb[2]-bb[0]
+			h = bb[3]-bb[1]
+			left = bb[0]-w/2
+			top = bb[1]-h/2
+			right = left + 2*w
+			bottom = top + 2*h
+			box = (left, top, right, bottom)
+			box = tuple([int(math.floor(x)) for x in box])
+			res = np.array(im.crop(box))
+			bb = [bb[0]-left, bb[1]-top, bb[2]-left, bb[3]-top]
+
+			# print("Error:  bounding box degenerate")
+			# sys.exit()
+		else:
+			prev_bb = bb
 		return {'image':res, 'bb':bb}
 
 
