@@ -114,7 +114,7 @@ def evaluate(model, dataloader, criterion, epoch):
 	dataset = dataloader.dataset
 	total_loss = 0
 
-	for i in xrange(64):
+	for i in range(64):
 		sample = dataset[i]
 		sample['currimg'] = sample['currimg'][None,:,:,:]
 		sample['previmg'] = sample['previmg'][None,:,:,:]
