@@ -1,4 +1,4 @@
-# pytorch-Re3
+# Pytorch-Re3
 
 ## Objective
 
