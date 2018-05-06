@@ -1,4 +1,4 @@
-# Pytorch-Re3
+# PyTorch-Re3
 
 ## Objective
 
@@ -56,7 +56,15 @@ cuda(recommended)
 
 ```
 
-## Instructions to run
+
+## Remaining work to be done
+<ul>
+<li>The paper mentions the use of two layer, factored-LSTM with peephole connections to be used which I could not find an implementation in PyTorch.</li>
+<li>The paper also mentions to train the network on ILSVRC 2016 Object Detection from Video dataset (Imagenet Video) data and also to create synthetic data from it.</li>
+<li>I could not complete the training procedure and so work needs to be done in that aspect specifically unrolling during training and the procedure of learning to fix mistakes.</li>
+</ul>
+
+## Instructions to use code
 
 In the ALOV dataset downloaded, keep the ground truth values and the actual data into a folder named 'alov' just outside the folder of this repository. Let the name of the directory for the actual video data frames be 'imagedata++' and the corresponding annotations be 'alov300++\_rectangleAnnotation_full'.
 I also took out the last entires from each of the directories of imagedata++ to construct the test set. Place the test set in the imagedata++ directory.
@@ -65,9 +73,3 @@ The code can then be directly run using python3 trainModel.py
 To test the code, in the file testModel.py, change model_weights on line 26 to the file name of the saved model.
 
 I could not complete the network's training using the entire dataset(due to it requiring a lot of computational time and resources) and hence the trained model is unavailable. So to test the network, it has to be trained first using the command mentioned above and then used for testing.
-
-## Remaining work to be done
-
-The paper mentions the use of two layer, factored-LSTM with peephole connections to be used which I could not find an implementation in PyTorch.
-The paper also mentions to train the network on ILSVRC 2016 Object Detection from Video dataset (Imagenet Video) data and also to create synthetic data from it.
-I could not complete the training procedure and so work needs to be done in that aspect specifically unrolling during training and the procedure of learning to fix mistakes.
